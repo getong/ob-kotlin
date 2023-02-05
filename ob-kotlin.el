@@ -1,13 +1,13 @@
-;;; ob-kotlin.el --- org-babel functions for kotlin evaluation
+;;; ob-kotlin.el --- Org-babel functions for Kotlin evaluation
 
 ;; Copyright (C) 2015 ZHOU Feng
 
 ;; Author: ZHOU Feng <zf.pascal@gmail.com>
 ;; URL: http://github.com/zweifisch/ob-kotlin
-;; Keywords: org babel kotlin
-;; Version: 0.0.1
+;; Keywords: extensions
+;; Version: 0.1.0
 ;; Created: 12th Mar 2015
-;; Package-Requires: ((org "8"))
+;; Package-Requires: ((emacs "24.4"))
 
 ;; This file is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 
 ;;; Commentary:
 ;;
-;; org-babel functions for kotlin evaluation
+;; Org-babel functions for Kotlin evaluation
 ;;
 
 ;;; Code:
@@ -35,15 +35,16 @@
 (defvar ob-kotlin-eoe "ob-kotlin-eoe")
 
 (defgroup ob-kotlin nil
-  "org-babel functions for kotlin evaluation"
+  "Org-babel functions for kotlin evaluation."
   :group 'org)
 
-(defcustom ob-kotlin:kotlinc "kotlinc"
-  "kotlin compiler"
+(defcustom ob-kotlin-compiler-name "kotlinc"
+  "Indicates the name of the Kotlin compiler."
   :group 'ob-kotlin
   :type 'string)
 
 (defun org-babel-execute:kotlin (body params)
+  "Execute the code snippet BODY with parameters PARAMS."
   (let ((session (cdr (assoc :session params)))
         (file (cdr (assoc :file params))))
     (ob-kotlin--ensure-session session)
@@ -55,23 +56,29 @@
       (unless file result))))
 
 (defun ob-kotlin--ensure-session (session)
+  "Waits until there is a Kotlin REPL for a session SESSION."
   (let ((name (format "*ob-kotlin-%s*" session)))
     (unless (and (get-process name)
                  (process-live-p (get-process name)))
       (let ((process (with-current-buffer (get-buffer-create name)
-                       (start-process name name ob-kotlin:kotlinc))))
+                       (start-process name name ob-kotlin-compiler-name))))
         (sit-for 1)
         (set-process-filter process 'ob-kotlin--process-filter)
         (ob-kotlin--wait "Welcome to Kotlin")))))
 
 (defun ob-kotlin--process-filter (process output)
+  "Ensure that REPL is ready for more input registering previous output OUTPUT.
+
+PROCESS is ignored"
   (setq ob-kotlin-process-output (concat ob-kotlin-process-output output)))
 
 (defun ob-kotlin--wait (pattern)
+  "Wait until the REPL prompt appears mismatching the pattern PATTERN."
   (while (not (string-match-p pattern ob-kotlin-process-output))
     (sit-for 1)))
 
 (defun ob-kotlin-eval-in-repl (session body)
+  "Sends source code from BODY of a session SESSION to Kotlin REPL."
   (let ((name (format "*ob-kotlin-%s*" session)))
     (setq ob-kotlin-process-output "")
     (process-send-string name (format "%s\n\"%s\"\n" body ob-kotlin-eoe))
